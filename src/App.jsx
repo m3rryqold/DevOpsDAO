@@ -1,5 +1,5 @@
-import { useAddress, useMetamask, useEditionDrop } from "@thirdweb-dev/react";
-import { useState,useEffect } from "react";
+import { useAddress, useMetamask, useEditionDrop, useToken } from "@thirdweb-dev/react";
+import { useState, useEffect, useMemo } from "react";
 
 const App = () => {
   // Use thirdweb hooks
@@ -8,38 +8,99 @@ const App = () => {
   console.log("👌 Address:", address);
 
   const editionDrop = useEditionDrop("0xF65fe7Dc6702C3915707F54E770D49308C510EF0");
+  const token = useToken("0x0e12650bb3BC8e6ce4Bd672E8A2D3310ee1F0784")
   const [hasClaimedNFT, setHasClaimedNFT] = useState(false);
   const [isClaiming, setIsClaiming] = useState(false);
 
+  // holds amount of token each member has in state
+  const [memberTokenAmounts, setMemberTokenAmounts] = useState([]);
+  // holds member addresses
+  const [memberAddresses, setMemberAddresses] = useState([]);
+
+  // display short version of wallet address
+  const shortenAddress = (str) => {
+    return str.substring(0, 6) + "..." + str.substring(str.length - 4);
+  };
+
+  // fetch all addresses of members holding NFT
   useEffect(() => {
-    if(!address){
+    if (!hasClaimedNFT) {
+      return;
+    }
+
+    // fetch users holding NFT with tokenId 0
+    const getAllAddresses = async () => {
+      try {
+        const memberAddresses = await editionDrop.history.getAllClaimerAddresses(0);
+        setMemberAddresses(memberAddresses);
+      } catch (error) {
+        console.error("failed to get member list", error);
+      }
+    };
+    getAllAddresses();
+  }, [hasClaimedNFT, editionDrop.history]);
+
+  // fetch the # of tokens each member holds.
+  useEffect(() => {
+    if (!hasClaimedNFT) {
+      return;
+    }
+
+    const getallBalances = async () => {
+      try {
+        const amounts = await token.history.getAllHolderBalances();
+        setMemberTokenAmounts(amounts);
+        console.log("👜 Amounts", amounts);
+      } catch (error) {
+        console.error("failed to get member balances", error);
+      }
+    };
+    getallBalances();
+  }, [hasClaimedNFT, token.history]);
+
+  // combine memberAddresses and memberTokenAmounts into a single array
+  const memberList = useMemo(() => {
+    return memberAddresses.map((address) => {
+      // check if address is found in memberTokenAmounts array, or return 0.
+      const member = memberTokenAmounts?.find(({ holder }) => holder === address);
+
+      return {
+        address,
+        tokenAmount: member?.balance.displayValue || "0",
+      }
+    });
+  }, [memberAddresses, memberTokenAmounts]);
+
+
+  useEffect(() => {
+    if (!address) {
       return;
     }
 
     const checkBalance = async () => {
       try {
         const balance = await editionDrop.balanceOf(address, 0);
-        if(balance.gt(0)){
+        if (balance.gt(0)) {
           setHasClaimedNFT(true);
           console.log("🌟 this user has a membership NFT!");
         } else {
           setHasClaimedNFT(false);
           console.log("😥 this user doesn't have a membership NFT.")
         }
-      } catch(error){
+      } catch (error) {
         console.error("Failed to get balance", error);
       }
     };
     checkBalance();
-  },[address,editionDrop]);
+  }, [address, editionDrop]);
 
   const mintNFT = async () => {
     try {
       setIsClaiming(true);
-      await editionDrop.claim("0",1);
+      await editionDrop.claim("0", 1);
       console.log(`🌊 Successfully Minted! Check it out on OpenSea: https://testnets.opensea.io/assets/${editionDrop.getAddress()}/0`);
       setHasClaimedNFT(true);
-    } catch(error) {
+    } catch (error) {
       setHasClaimedNFT(false);
       console.error("Failed to mint NFT", error);
     } finally {
@@ -48,7 +109,7 @@ const App = () => {
   }
 
   //ask user to connect wallet if not connected
-  if(!address){
+  if (!address) {
     return (
       <div className="landing">
         <h1>👋Welcome to DevOps<span className="tint">DAO</span></h1>
@@ -59,11 +120,34 @@ const App = () => {
     );
   }
   // Already claimed NFT, display dashboard
-  if(hasClaimedNFT){
+  if (hasClaimedNFT) {
     return (
       <div className="member-page">
         <h1>💻 DevOps DAO Member Page</h1>
         <p>Congratulations on being a member</p>
+        <div>
+          <div>
+            <h2>Member List</h2>
+            <table className="card">
+              <thead>
+                <tr>
+                  <th>Address</th>
+                  <th>Token Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                {memberList.map((member) => {
+                  return (
+                    <tr key={member.address}>
+                      <td>{shortenAddress(member.address)}</td>
+                      <td>{member.tokenAmount}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
     )
   }
@@ -74,9 +158,9 @@ const App = () => {
       <button
         disabled={isClaiming}
         onClick={mintNFT}
-        >
-          {isClaiming ? "Minting..." : "Mint your FREE NFT"}
-        </button>
+      >
+        {isClaiming ? "Minting..." : "Mint your FREE NFT"}
+      </button>
     </div>
   );
 };
