@@ -186,7 +186,7 @@ const App = () => {
         <div className="landing">
           <h1>👋Welcome to DevOps<span className="tint">DAO</span></h1>
           <a href={metamaskAppDeepLink}>
-            <button className="btn-hero">
+            <button onClick={connectWithMetamask} className="btn-hero">
               Connect Wallet
             </button>
           </a>
