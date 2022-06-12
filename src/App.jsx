@@ -160,20 +160,39 @@ const App = () => {
     }
   }
 
+  const isMobileDevice = () => {
+    return 'ontouchstart' in window || 'onmsgesturechange' in window;
+  }
+
   if (address && (network?.[0].data.chain.id !== ChainId.Rinkeby)) {
     return (
       <div className="unsupported-network">
-      <h2>Please connect to Rinkeby</h2>
-      <p>
-        This dapp only works on the Rinkeby network, please switch networks
-        in your connected wallet.
-      </p>
-    </div>
+        <h2>Please connect to Rinkeby</h2>
+        <p>
+          This dapp only works on the Rinkeby network, please switch networks
+          in your connected wallet.
+        </p>
+      </div>
     );
   }
 
   //ask user to connect wallet if not connected
   if (!address) {
+    if (isMobileDevice()) {
+      const dappUrl = "devops-dao.vercel.app/"; // TODO enter your dapp URL. For example: https://uniswap.exchange. (don't enter the "https://")
+      const metamaskAppDeepLink = "https://metamask.app.link/dapp/" + dappUrl;
+      console.log("for mobile->" + metamaskAppDeepLink)
+      return (
+        <div className="landing">
+          <h1>👋Welcome to DevOps<span className="tint">DAO</span></h1>
+          <a href={metamaskAppDeepLink}>
+            <button className="btn-hero">
+              Connect Wallet
+            </button>
+          </a>
+        </div>
+      );
+    }
     return (
       <div className="landing">
         <h1>👋Welcome to DevOps<span className="tint">DAO</span></h1>
